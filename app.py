@@ -1,50 +1,31 @@
-from flask import Flask, render_template, request
-import pickle
-import pandas as pd
+import streamlit as st
+import mlflow
+import mlflow.sklearn
+import numpy as np
+
+# Chargement du modèle
+model_path = 'C:/Users/marin/Downloads/essai/mlruns/638687169010702785/995eb707735e49359209e068d61c8f80/artifacts/modele_regression_logistique'
+model = mlflow.sklearn.load_model(model_path)
+
+st.title("Application - prédiction du risque de défaut de crédit")
 
 
-app = Flask(__name__)
-model = pickle.load(open("catboost_model-2.pkl", "rb"))
+# Création de champs de saisie 
+credit_lines = st.number_input('Nombre de lignes de crédit', min_value=0, max_value=100)
+loan_amt = st.number_input('Montant du prêt restant', min_value=0.0)
+total_debt = st.number_input('Dette totale restante', min_value=0.0)
+income = st.number_input('Revenu', min_value=0.0)
+years_employed = st.number_input('Années d\'emploi', min_value=0, max_value=100)
+fico_score = st.number_input('Score FICO', min_value=300, max_value=850)
 
+# Conversion des entrées de l'utilisateur en un tableau pour la prédiction
+input_data = np.array([[credit_lines, loan_amt, total_debt, income, years_employed, fico_score]])
 
-def model_pred(features):
-    test_data = pd.DataFrame([features])
-    prediction = model.predict(test_data)
-    return int(prediction[0])
+if st.button('Prédire'):
+    # Affichage la prédiction avec le modèle
+    prediction = model.predict(input_data)
 
-
-@app.route("/", methods=["GET"])
-def Home():
-    return render_template("index.html")
-
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    if request.method == "POST":
-        Age = int(request.form["Age"])
-        RestingBP = int(request.form["RestingBP"])
-        Cholesterol = int(request.form["Cholesterol"])
-        Oldpeak = float(request.form["Oldpeak"])
-        FastingBS = int(request.form["FastingBS"])
-        MaxHR = int(request.form["MaxHR"])
-        prediction = model.predict(
-            [[Age, RestingBP, Cholesterol, FastingBS, MaxHR, Oldpeak]]
-        )
-
-        if prediction[0] == 1:
-            return render_template(
-                "index.html",
-                prediction_text="Kindly make an appointment with the doctor!",
-            )
-
-        else:
-            return render_template(
-                "index.html", prediction_text="You are well. No worries :)"
-            )
-
+    if prediction == 1:
+        st.error('Risque élevé de défaut de paiement.')
     else:
-        return render_template("index.html")
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+        st.success('Faible risque de défaut de paiement.')
